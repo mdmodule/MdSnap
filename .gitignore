@@ -1,0 +1,24 @@
+# ===== 构建产物 =====
+[Bb]in/
+[Oo]bj/
+publish/
+*.user
+*.suo
+.vs/
+
+# ===== 字体源素材（约 50MB，不进仓库）=====
+# 用 python tools/fetch_font.py 下载，再跑 python tools/make_font.py 生成子集
+tools/fontsrc/
+
+# ===== 开发期调试产物 =====
+tools/_*.png
+tools/_*.txt
+*.result.txt
+
+# ===== 自检 / 运行期输出 =====
+*.menu.png
+
+# ===== 系统垃圾 =====
+Thumbs.db
+Desktop.ini
+.DS_Store

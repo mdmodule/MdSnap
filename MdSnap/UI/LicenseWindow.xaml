@@ -1,0 +1,59 @@
+<Window x:Class="MdSnap.UI.LicenseWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="字体许可" Width="740" Height="580" MinWidth="520" MinHeight="380"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        WindowStyle="None" ResizeMode="CanResize"
+        Background="{StaticResource PageBgBrush}"
+        FontFamily="{StaticResource UiFont}" FontSize="12.5"
+        TextOptions.TextFormattingMode="Ideal"
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" ResizeBorderThickness="6" CornerRadius="0"
+                      GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 自绘标题栏 -->
+        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid>
+                <TextBlock Text="字体许可 · Font License" Margin="16,0,0,0" VerticalAlignment="Center"
+                           FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <Button Style="{StaticResource CaptionClose}" HorizontalAlignment="Right"
+                        VerticalAlignment="Center" Click="Close_Click" ToolTip="关闭"/>
+            </Grid>
+        </Border>
+
+        <!-- 许可证全文（读取内嵌资源，不依赖外部文件） -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="16,14,16,12" Padding="0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,12">
+                <TextBlock x:Name="LicenseText" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{StaticResource TextSecondaryBrush}" LineHeight="19"
+                           FontFamily="{StaticResource MonoFont}"/>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="11.5"
+                           Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"
+                           Text="界面字体 MdSnap Sans SC 基于思源黑体 (Source Han Sans SC) 制作，按 SIL Open Font License 1.1 授权，允许商用。"/>
+                <Button Grid.Column="1" Content="关闭" Style="{StaticResource SecondaryButton}"
+                        Margin="14,0,0,0" Click="Close_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

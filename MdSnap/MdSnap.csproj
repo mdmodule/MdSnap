@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+
+    <!-- 程序集信息 -->
+    <AssemblyName>MdSnap</AssemblyName>
+    <RootNamespace>MdSnap</RootNamespace>
+    <Product>MdSnap</Product>
+    <AssemblyTitle>MdSnap</AssemblyTitle>
+    <Description>极简无广告截图工具</Description>
+    <Company>mdmodule</Company>
+    <Version>0.1.0</Version>
+
+    <!-- 图标 + DPI 清单 -->
+    <ApplicationIcon>Assets\MdSnap.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- 自包含单文件发布 -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 图标内嵌进 exe，托盘/窗口可运行时读取（单文件场景必需） -->
+    <Resource Include="Assets\MdSnap.ico" />
+    <!-- 内嵌字体：思源黑体子集 + 改名版（SIL OFL 1.1，可商用）。
+         必须用 Resource 才会打进程序集，单文件发布才带得走。 -->
+    <Resource Include="Assets\Fonts\*.otf" />
+    <Resource Include="Assets\Fonts\OFL.txt" />
+  </ItemGroup>
+
+</Project>
