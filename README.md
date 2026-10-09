@@ -4,8 +4,6 @@
 
 一个自己写的截图工具。起因很简单：常见的截图软件要么弹广告，要么捆绑推广、要么功能堆得让人眼花。这个只做**最常用的那几件事**，然后把它们做顺手。
 
-<img src="docs/images/main-window.png" width="720" alt="MdSnap 主界面">
-
 ---
 
 ## 特性
@@ -21,13 +19,13 @@
 
 ## 截图
 
-| 标注编辑器 | 取景覆盖层 |
-|---|---|
-| <img src="docs/images/editor.png" width="420"> | <img src="docs/images/overlay.png" width="380"> |
+托盘右键菜单：
 
 <p>
 <img src="docs/images/tray-menu.png" width="260" alt="托盘右键菜单">
 </p>
+
+> 主界面、标注编辑器、取景覆盖层的截图待补。
 
 ## 关于本项目
 
