@@ -346,6 +346,7 @@ public partial class MainWindow : Window
         $"MdSnap v{VersionText}\n极简无广告截图工具\n\n" +
         $"捕捉热键：{AppConfig.Hotkey.Text}\n保存目录：{FileSaver.SaveDir}\n\n" +
         "功能：区域 / 全屏 / 活动窗口捕捉 · 箭头 / 矩形 / 文字 / 高亮 / 马赛克 · 橡皮擦 · 剪贴板 · 捕捉历史\n\n" +
+        "本工具由机械工程师主导设计，代码借助 AI 辅助编写。\n\n" +
         "界面字体：MdSnap Sans SC\n" +
         "基于思源黑体 (Source Han Sans SC) 制作的字形子集，按 SIL Open Font License 1.1 授权\n" +
         "（允许商用与随软件分发）。许可证全文请点主界面「字体许可」。",
