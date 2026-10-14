@@ -14,7 +14,7 @@
     <AssemblyTitle>MdSnap</AssemblyTitle>
     <Description>极简无广告截图工具</Description>
     <Company>mdmodule</Company>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
 
     <!-- 图标 + DPI 清单 -->
     <ApplicationIcon>Assets\MdSnap.ico</ApplicationIcon>
