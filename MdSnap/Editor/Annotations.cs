@@ -111,11 +111,22 @@ public sealed class HighlightAnno : Anno
     }
 }
 
-/// <summary>箭头（杆 + 实心三角头）。</summary>
+/// <summary>
+/// 箭头。不是"等宽线 + 三角头"，而是一个**整体填充多边形**：
+/// 尾部收成一个尖点，朝箭头方向逐渐变粗，并入实心三角头 —— 即常见的
+/// "微信式"锥形箭头。用填充多边形而不是描边，是它看起来利落的关键。
+///
+/// 路径 6 个点：箭尖 → 左倒钩 → 左杆根 → 尾尖 → 右杆根 → 右倒钩 → 闭合
+/// </summary>
 public sealed class ArrowAnno : Anno
 {
     public required Point Start { get; init; }
     public required Point End { get; init; }
+
+    // 以线宽 T 为基准的比例
+    private const double HeadLenRatio = 4.2;    // 三角头长
+    private const double HeadHalfRatio = 1.75;  // 三角头半宽（倒钩外沿）
+    private const double ShaftHalfRatio = 0.5;  // 杆在头部的半宽
 
     public override void Render(Canvas canvas, RenderContext ctx)
     {
@@ -123,32 +134,32 @@ public sealed class ArrowAnno : Anno
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
 
-        double head = Math.Min(Math.Max(Thickness * 4.5, 12), len * 0.65);
-        double angle = Math.Atan2(dy, dx);
-        double spread = 0.40; // 约 23°
+        double t = Thickness;
+        double headLen = Math.Min(Math.Max(t * HeadLenRatio, 8), len * 0.85);
+        double headHalf = t * HeadHalfRatio;
+        double shaftHalf = Math.Max(t * ShaftHalfRatio, 0.75);
 
-        var p1 = new Point(End.X + head * Math.Cos(angle + Math.PI - spread), End.Y + head * Math.Sin(angle + Math.PI - spread));
-        var p2 = new Point(End.X + head * Math.Cos(angle + Math.PI + spread), End.Y + head * Math.Sin(angle + Math.PI + spread));
-        var shaftEnd = new Point(End.X - head * 0.55 * Math.Cos(angle), End.Y - head * 0.55 * Math.Sin(angle));
+        // 单位方向向量 + 法线
+        double ux = dx / len, uy = dy / len;
+        double nx = -uy, ny = ux;
 
-        canvas.Children.Add(new Line
+        // 三角头根部（倒钩所在的直线）
+        double bx = End.X - ux * headLen;
+        double by = End.Y - uy * headLen;
+
+        var head = new PathFigure(End, new PathSegment[]
         {
-            X1 = Start.X, Y1 = Start.Y, X2 = shaftEnd.X, Y2 = shaftEnd.Y,
-            Stroke = Brush(),
-            StrokeThickness = Thickness,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap = PenLineCap.Round,
-        });
-
-        var headFigure = new PathFigure(End, new PathSegment[]
-        {
-            new LineSegment(p1, false),
-            new LineSegment(p2, false),
+            new LineSegment(new Point(bx + nx * headHalf, by + ny * headHalf), false),    // 左倒钩
+            new LineSegment(new Point(bx + nx * shaftHalf, by + ny * shaftHalf), false),  // 左杆根
+            new LineSegment(Start, false),                                                // 尾尖
+            new LineSegment(new Point(bx - nx * shaftHalf, by - ny * shaftHalf), false),  // 右杆根
+            new LineSegment(new Point(bx - nx * headHalf, by - ny * headHalf), false),    // 右倒钩
         }, true);
+
         canvas.Children.Add(new Path
         {
             Fill = Brush(),
-            Data = new PathGeometry(new[] { headFigure }),
+            Data = new PathGeometry(new[] { head }),
         });
     }
 

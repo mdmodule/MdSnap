@@ -46,7 +46,6 @@ public partial class AnnotateWindow : Window
 
     private ToolKind _tool = ToolKind.Arrow;
     private Color _color = Palette[0].Value;
-    private double _widthPreset = 4;
 
     private bool _dragging;
     private Point _start;
@@ -189,35 +188,83 @@ public partial class AnnotateWindow : Window
 
         AnnoCanvas.Cursor = kind == ToolKind.Text ? Cursors.IBeam : Cursors.Cross;
 
+        // 那三个按钮跟着工具换含义（文字→字号 小/中/大，其它→线宽 细/中/粗）
+        RefreshSizeButtons();
+
         // 橡皮圈线宽随原图缩放，否则缩略显示时细到看不见
         EraserRing.StrokeThickness = Math.Max(1, _iw / 900.0);
         if (kind != ToolKind.Eraser) EraserRing.Visibility = Visibility.Collapsed;
         else Status("橡皮擦：按住拖拽擦掉画面内容（擦成白色），Ctrl+Z 可恢复");
+
+        if (kind == ToolKind.Text)
+            Status($"文字：点击画面输入，Enter 确认；「小/中/大」调字号（当前 {FontLabels[_fontIndex]}）");
     }
+
+    // 「细/中/粗」三个按钮是**语境化**的：
+    //   当前工具 = 文字 → 控制字号（标签变「小/中/大」）
+    //   其它工具       → 控制线宽（标签为「细/中/粗」）
+    // 两套档位各自记忆，来回切工具不会互相串。
+    private static readonly double[] WidthValues = { 2.0, 4.0, 8.0 };
+    private static readonly string[] WidthLabels = { "细", "中", "粗" };
+    private static readonly double[] FontScales = { 0.65, 1.0, 1.75 };
+    private static readonly string[] FontLabels = { "小", "中", "大" };
+
+    private int _widthIndex = 1;   // 默认「中」= 4.0
+    private int _fontIndex = 1;    // 默认「中」= 1.0×（与改动前一致，不产生回归）
 
     private void Width_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string tag } && double.TryParse(tag, out double v))
-            SetWidthPreset(v);
+        if (sender is not Button { Tag: string tag } || !double.TryParse(tag, out double v)) return;
+        int idx = Array.IndexOf(WidthValues, v);
+        if (idx < 0) return;
+
+        if (_tool == ToolKind.Text) SetFontPreset(idx);
+        else SetWidthPreset(idx);
     }
 
     private void SetWidthPreset(double preset)
     {
-        _widthPreset = preset;
-        foreach (var (btn, val) in new[] { (ThinBtn, 2.0), (MidBtn, 4.0), (ThickBtn, 8.0) })
-        {
-            bool on = Math.Abs(val - preset) < 0.01;
-            btn.Foreground = on ? ThemeBrush("DarkAccentTextBrush") : ThemeBrush("DarkTextBrush");
-            btn.FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal;
-        }
+        int idx = Array.IndexOf(WidthValues, preset);
+        if (idx >= 0) SetWidthPreset(idx);
+    }
+
+    private void SetWidthPreset(int idx)
+    {
+        _widthIndex = idx;
+        RefreshSizeButtons();
         // 橡皮圈大小跟着「粗细」走，改档位后立即反映到光标圈
         UpdateEraserRingSize();
     }
 
-    /// <summary>线宽随原图尺寸放大，避免大图上细成一丝。</summary>
-    private double ThicknessPx => _widthPreset * Math.Max(1.0, _iw / 1920.0);
+    private void SetFontPreset(int idx)
+    {
+        _fontIndex = idx;
+        RefreshSizeButtons();
+        Status($"字号：{FontLabels[idx]}（{FontScales[idx]:0.##}×）");
+    }
 
-    private double TextFontSize => Math.Max(16, _iw / 55.0);
+    /// <summary>按当前工具刷新那三个按钮的标签、选中态和提示。</summary>
+    private void RefreshSizeButtons()
+    {
+        bool isText = _tool == ToolKind.Text;
+        var labels = isText ? FontLabels : WidthLabels;
+        int active = isText ? _fontIndex : _widthIndex;
+
+        foreach (var (btn, i) in new[] { (ThinBtn, 0), (MidBtn, 1), (ThickBtn, 2) })
+        {
+            btn.Content = labels[i];
+            btn.ToolTip = isText ? "字号" : "线宽";
+            bool on = i == active;
+            btn.Foreground = on ? ThemeBrush("DarkAccentTextBrush") : ThemeBrush("DarkTextBrush");
+            btn.FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal;
+        }
+    }
+
+    /// <summary>线宽随原图尺寸放大，避免大图上细成一丝。</summary>
+    private double ThicknessPx => WidthValues[_widthIndex] * Math.Max(1.0, _iw / 1920.0);
+
+    /// <summary>字号 = 按图宽自动算的基准 × 用户选的档位。</summary>
+    private double TextFontSize => Math.Max(11, Math.Max(16, _iw / 55.0) * FontScales[_fontIndex]);
 
     /// <summary>橡皮半径（原图像素）= 线宽档位 ×3，即「细/中/粗」同时调橡皮大小。</summary>
     private double EraserRadius => ThicknessPx * 3.0;
