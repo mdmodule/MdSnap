@@ -88,7 +88,11 @@ public partial class AnnotateWindow : Window
 
         BuildPalette();
         SetTool(ToolKind.Arrow);
-        SetWidthPreset(4);
+        // 注意：这里必须传「档位索引」而不是线宽值。
+        // 以前传 4 表示 4px，但字面量 4 是 int —— 加了 int 重载后会精确匹配到
+        // SetWidthPreset(int)，被当成索引 4 而越界。所以只保留 int 重载，
+        // 并把这里改成索引（1 = 中）。
+        SetWidthPreset(1);
 
         AnnoCanvas.MouseLeftButtonDown += Canvas_MouseDown;
         AnnoCanvas.MouseMove += Canvas_MouseMove;
@@ -220,12 +224,6 @@ public partial class AnnotateWindow : Window
 
         if (_tool == ToolKind.Text) SetFontPreset(idx);
         else SetWidthPreset(idx);
-    }
-
-    private void SetWidthPreset(double preset)
-    {
-        int idx = Array.IndexOf(WidthValues, preset);
-        if (idx >= 0) SetWidthPreset(idx);
     }
 
     private void SetWidthPreset(int idx)
