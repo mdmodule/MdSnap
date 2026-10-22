@@ -26,6 +26,8 @@ public partial class MainWindow : Window
         LoadIcon();
         ModeList.SelectedIndex = 2;      // 默认「选定区域」
         BuildHotkeyList();
+        // 启动过程中可能已经产生过热键状态（注册失败 / 被自动修复），恢复显示
+        if (App.HotkeyStatusText is { } hotkeyStatus) ReportHotkeyStatus(hotkeyStatus, App.HotkeyStatusError);
         RefreshInfoTexts();
         SelectTab("Tools");
         UpdateStatus();
@@ -312,9 +314,24 @@ public partial class MainWindow : Window
             "5. Ctrl+C 复制到剪贴板，Ctrl+S 保存，Ctrl+Z 撤销";
     }
 
+    /// <summary>
+    /// 热键状态（注册失败 / 自动恢复）：热键页 + 状态栏都显示。
+    /// 托盘气泡在 Win11 会被「专注助手」吞掉，光靠它等于静默失效。
+    /// </summary>
+    internal void ReportHotkeyStatus(string text, bool error)
+    {
+        HotkeyStatus.Text = error ? "⚠ " + text : text;
+        HotkeyStatus.Foreground = error
+            ? Application.Current?.TryFindResource("DangerBrush") as Brush ?? Brushes.OrangeRed
+            : Application.Current?.TryFindResource("TextMutedBrush") as Brush ?? Brushes.Gray;
+        UpdateStatus();
+    }
+
     private void UpdateStatus()
     {
-        StatusLeft.Text = $"按下捕捉热键 {AngleWrap(AppConfig.Hotkey.Text)} 进行捕捉";
+        StatusLeft.Text = App.HotkeyStatusError && App.HotkeyStatusText is { } warn
+            ? "⚠ " + warn
+            : $"按下捕捉热键 {AngleWrap(AppConfig.Hotkey.Text)} 进行捕捉";
         StatusRight.Text = $"保存到：{FileSaver.SaveDir}";
     }
 

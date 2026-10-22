@@ -21,6 +21,9 @@ public sealed class AppSettings
     /// <summary>该日期已用到的最大序号。删掉旧图后仍从这里往下走，不会重号。</summary>
     public int SequenceLast { get; set; }
 
+    /// <summary>热键排查日志（默认关闭）。偶发"按热键没反应"时才需要打开。</summary>
+    public bool HotkeyLog { get; set; }
+
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
     public static string FilePath => Path.Combine(

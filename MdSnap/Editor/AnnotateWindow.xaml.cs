@@ -112,7 +112,16 @@ public partial class AnnotateWindow : Window
     public static void Edit(System.Drawing.Bitmap bitmap)
     {
         var w = new AnnotateWindow(bitmap);
-        w.ShowDialog();
+        // 登记给看门狗 / 给热键用：按热键时旧的标注窗口要让位，开始新的一次截图
+        Capture.CaptureService.PushDialog(w);
+        try
+        {
+            w.ShowDialog();
+        }
+        finally
+        {
+            Capture.CaptureService.PopDialog(w);
+        }
     }
 
     /// <summary>窗口里除图片以外的固定尺寸：标题栏 38 + 工具条 51 + 画布外边距 24。</summary>

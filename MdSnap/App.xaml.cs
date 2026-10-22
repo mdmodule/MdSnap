@@ -21,6 +21,18 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // 热键排查日志（默认关闭）：启动参数 --hotkey-log，或 settings.json 里 "HotkeyLog": true
+        Tray.HotkeyLog.Init(AppSettings.Current.HotkeyLog, e.Args.Contains("--hotkey-log"));
+
+        // 隐藏自检：MdSnap.exe --selftest-hotkey [报告路径]
+        // 验证"注册丢了能自动补回来""新组合被占用时旧热键不丢"和看门狗的两个复位，不弹界面、不改设置。
+        if (e.Args.Length >= 1 && e.Args[0] == "--selftest-hotkey")
+        {
+            RunHotkeySelfTest(e.Args.Length >= 2 ? e.Args[1] : null);
+            Shutdown();
+            return;
+        }
+
         // 隐藏自检：MdSnap.exe --selftest [输出图片路径]
         // 不启动托盘，跑一次「全屏截图 -> 存盘」后用同名 .result.txt 报告结果。用于自动化验证。
         if (e.Args.Length >= 1 && e.Args[0] == "--selftest")
@@ -46,6 +58,7 @@ public partial class App : Application
         _tray = new Tray.TrayIcon(
             mainWindowProvider: () => _main is { IsVisible: true } ? _main : null,
             showMainWindow: ShowMainWindow);
+        _tray.HotkeyStatusChanged += ReportHotkeyStatus;   // 热键状态要能显示在主界面上
         _tray.Initialize();
 
         // 启动即显示主界面（像红蜻蜓一样），同时托盘常驻
@@ -74,6 +87,131 @@ public partial class App : Application
 
     /// <summary>按当前设置重新注册热键（设置页换热键后调用）。返回是否成功。</summary>
     internal bool ReapplyHotkey() => _tray?.ReapplyHotkey() ?? false;
+
+    // ---------- 热键状态（注册失败 / 自动恢复）----------
+
+    /// <summary>最近一次热键状态文案。主界面重建时用它恢复显示。</summary>
+    internal static string? HotkeyStatusText { get; private set; }
+
+    internal static bool HotkeyStatusError { get; private set; }
+
+    /// <summary>
+    /// 热键状态变化：主界面状态栏 + 热键页都显示。
+    /// 不能只靠托盘气泡 —— Win11 的「专注助手」会把它们吞掉，用户什么都看不到。
+    /// </summary>
+    internal void ReportHotkeyStatus(string text, bool error)
+    {
+        HotkeyStatusText = text;
+        HotkeyStatusError = error;
+        _main?.ReportHotkeyStatus(text, error);
+    }
+
+    /// <summary>
+    /// 热键自检：不弹界面、不改设置，跑完把结论写进报告文件。
+    /// 覆盖三件事：注册丢了能不能自动补回来；新组合被占用时旧热键会不会一起丢；
+    /// 看门狗能不能复位僵死的忙标志和流程入口。
+    /// </summary>
+    private static void RunHotkeySelfTest(string? outPath)
+    {
+        outPath ??= Path.Combine(Path.GetTempPath(), "mdsnap_hotkey_selftest.txt");
+        var lines = new List<string>();
+        bool allOk = true;
+
+        void Line(string s) => lines.Add(s);
+        void Check(string name, bool ok, string detail = "")
+        {
+            if (!ok) allOk = false;
+            Line($"[{(ok ? "OK" : "FAIL")}] {name}{(detail.Length > 0 ? " — " + detail : "")}");
+        }
+
+        // 用 F10/F9 这类没人抢的组合，避免和用户正在运行的那份 MdSnap 抢 Ctrl+Shift+A
+        const uint m = Tray.HotkeyManager.MOD_CONTROL | Tray.HotkeyManager.MOD_ALT | Tray.HotkeyManager.MOD_NOREPEAT;
+        const uint freeKey = 0x79;      // Ctrl+Alt+F10
+        const uint takenKey = 0x78;     // Ctrl+Alt+F9（留给"被占用"用例）
+
+        try
+        {
+            using var mgr = new Tray.HotkeyManager(9100);
+
+            Check("首次注册 Ctrl+Alt+F10", mgr.Register(m, freeKey), Tray.HotkeyManager.ProbeCombo(m, freeKey));
+
+            // 1) 模拟注册被系统悄悄丢掉 -> 自检应当补回来
+            mgr.SimulateRegistrationLossForTest();
+            string afterLoss = Tray.HotkeyManager.ProbeCombo(m, freeKey);
+            Check("模拟丢失后确实没人持有", afterLoss == "free", afterLoss);
+
+            mgr.SelfCheck();
+            string afterRepair = Tray.HotkeyManager.ProbeCombo(m, freeKey);
+            Check("自检把注册补回来了", mgr.IsRegistered && afterRepair.StartsWith("held"),
+                $"IsRegistered={mgr.IsRegistered} probe={afterRepair}");
+
+            // 2) 新组合被占用时，原热键不能跟着丢
+            bool occupied = Tray.HotkeyManager.OccupyForTest(m, takenKey);
+            Check("占住 Ctrl+Alt+F9 作为被占用目标", occupied);
+            bool switchOk = mgr.Register(m, takenKey);
+            Check("注册被占用的组合应当失败", !switchOk);
+            string stillThere = Tray.HotkeyManager.ProbeCombo(m, freeKey);
+            Check("失败后原热键仍然在", stillThere.StartsWith("held"), stillThere);
+            Tray.HotkeyManager.ReleaseOccupyForTest();
+        }
+        catch (Exception ex)
+        {
+            allOk = false;
+            Line("[FAIL] 热键用例异常：" + ex);
+        }
+
+        try
+        {
+            Capture.CaptureService.MarkBusyForTest();
+            bool busyReset = Capture.CaptureService.ForceResetIfStuck(minutes: 0);
+            Check("僵死的忙标志会被复位", busyReset && !Capture.CaptureService.Busy);
+
+            Capture.CaptureFlow.MarkFlowingForTest();
+            bool flowReset = Capture.CaptureFlow.ResetStuckIfNeeded(minutes: 0);
+            Check("僵死的流程入口会被复位", flowReset && !Capture.CaptureFlow.Flowing);
+        }
+        catch (Exception ex)
+        {
+            allOk = false;
+            Line("[FAIL] 复位用例异常：" + ex);
+        }
+
+        // 3) 按热键时旧的截图界面必须自动关掉（"标注窗口开着 → 热键没反应"的根因）
+        try
+        {
+            var probe = new Window
+            {
+                Width = 1,
+                Height = 1,
+                Left = -10000,
+                Top = -10000,
+                WindowStyle = WindowStyle.None,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+            };
+            probe.Show();
+            Capture.CaptureService.PushDialog(probe);
+            bool visibleBefore = Capture.CaptureService.HasVisibleDialog;
+            int closed = Capture.CaptureService.RequestCloseDialogs();
+            Check("按热键会关掉旧截图界面", visibleBefore && closed == 1 && !probe.IsVisible,
+                $"关闭 {closed} 个，关后仍可见={probe.IsVisible}");
+        }
+        catch (Exception ex)
+        {
+            allOk = false;
+            Line("[FAIL] 关旧界面用例异常：" + ex);
+        }
+
+        Line(allOk ? "RESULT=OK" : "RESULT=FAIL");
+        try
+        {
+            File.WriteAllText(outPath, string.Join(Environment.NewLine, lines) + Environment.NewLine);
+        }
+        catch
+        {
+            // 报告写不出去也不影响结论
+        }
+    }
 
     [System.Runtime.InteropServices.DllImport("user32.dll",
         CharSet = System.Runtime.InteropServices.CharSet.Unicode)]

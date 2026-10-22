@@ -15,7 +15,11 @@ public sealed class TrayIcon : IDisposable
 
     private TaskbarIcon? _icon;
     private HotkeyManager? _hotkey;
+    private Watchdog? _watchdog;
     private MenuItem? _captureMenuItem;
+
+    /// <summary>热键状态变化（文案, 是否异常）。App 接过去显示在主界面状态栏。</summary>
+    public event Action<string, bool>? HotkeyStatusChanged;
 
     public TrayIcon(Func<Window?> mainWindowProvider, Action showMainWindow)
     {
@@ -37,12 +41,31 @@ public sealed class TrayIcon : IDisposable
         _hotkey = new HotkeyManager(9000);
         _hotkey.Pressed += () => CaptureFlow.Run(_mainWindowProvider(), menuDelay: false, () =>
             Report(CaptureService.Region()));
+        _hotkey.StatusChanged += OnHotkeyStatusChanged;
 
         if (!ReapplyHotkey())
         {
             ShowInfo("MdSnap", $"⚠ 热键 {AppConfig.Hotkey.Text} 注册失败——已被其它程序占用，请在「热键」页换一个。",
                 BalloonIcon.Warning);
         }
+
+        // 看门狗：热键注册掉了就补回来、捕获流程卡死在入口就复位。
+        // 这两件事以前只能靠用户"退出再重开"，也就是热键看着彻底失灵的根源。
+        // 放在注册之后启动：第一次心跳就能反映真实状态，日志里不会出现误导性的"未注册"。
+        _watchdog = new Watchdog(_hotkey);
+        _watchdog.Start();
+    }
+
+    private void OnHotkeyStatusChanged(string text, bool error)
+    {
+        // 系统通知经常被「专注助手」吞掉，所以状态同时写到托盘悬停提示里
+        if (_icon is not null)
+        {
+            _icon.ToolTipText = error
+                ? $"MdSnap — ⚠ {text}（托盘右键仍可截图）"
+                : $"MdSnap — {AppConfig.Hotkey.Text} 截图";
+        }
+        HotkeyStatusChanged?.Invoke(text, error);
     }
 
     /// <summary>按当前设置重新注册热键。返回是否成功。</summary>
@@ -126,6 +149,8 @@ public sealed class TrayIcon : IDisposable
 
     public void Dispose()
     {
+        _watchdog?.Dispose();
+        _watchdog = null;
         _hotkey?.Dispose();
         _hotkey = null;
         _icon?.Dispose();

@@ -62,7 +62,16 @@ public partial class SelectionOverlay : Window
     public static Bitmap? Pick(Bitmap frozen)
     {
         var overlay = new SelectionOverlay(frozen);
-        return overlay.ShowDialog() == true ? overlay.Result : null;
+        // 登记给看门狗 / 给热键用：按热键要能把旧界面关掉
+        CaptureService.PushDialog(overlay);
+        try
+        {
+            return overlay.ShowDialog() == true ? overlay.Result : null;
+        }
+        finally
+        {
+            CaptureService.PopDialog(overlay);
+        }
     }
 
     // ---------- 生命周期 ----------
