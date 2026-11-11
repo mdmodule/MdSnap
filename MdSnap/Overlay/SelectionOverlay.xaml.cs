@@ -84,6 +84,7 @@ public partial class SelectionOverlay : Window
 
         PositionHint();
         SetMode(CaptureMode.Region);
+        UpdateCrosshair(Mouse.GetPosition(Surface));
 
         Activate();
         Focus();
@@ -124,6 +125,9 @@ public partial class SelectionOverlay : Window
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+
+        // 准星线永远跟着鼠标（区域模式才显示；其它模式在方法内部自动隐藏）
+        UpdateCrosshair(e.GetPosition(Surface));
 
         if (_mode == CaptureMode.Window && !_dragging)
         {
@@ -245,7 +249,12 @@ public partial class SelectionOverlay : Window
         BtnWindow.IsChecked = mode == CaptureMode.Window;
         BtnFull.IsChecked = mode == CaptureMode.Full;
 
-        Surface.Cursor = mode == CaptureMode.Window ? Cursors.Hand : Cursors.Cross;
+        Surface.Cursor = mode switch
+        {
+            CaptureMode.Window => Cursors.Hand,
+            CaptureMode.Region => Cursors.None,   // 小十字不要了，改成全屏十字准星
+            _ => Cursors.Cross,
+        };
 
         switch (mode)
         {
@@ -289,6 +298,7 @@ public partial class SelectionOverlay : Window
         }
 
         UpdateSelectionVisual();
+        UpdateCrosshair(Mouse.GetPosition(Surface));
     }
 
     private void BtnRegion_Click(object sender, RoutedEventArgs e) => SetMode(CaptureMode.Region);
@@ -359,6 +369,56 @@ public partial class SelectionOverlay : Window
 
         // 活动窗口模式下工具条固定在顶部，否则会跟着鼠标满屏乱跑
         PlaceToolbar(_mode == CaptureMode.Window ? null : r);
+    }
+
+    // ---------- 全屏十字准星 ----------
+
+    /// <summary>
+    /// 区域模式用横竖两条贯穿整个屏幕的细线替代系统小十字光标（红蜻蜓式），
+    /// 便于截图时目测/量取两点距离。其它模式自动隐藏。
+    /// </summary>
+    private void UpdateCrosshair(Point dip)
+    {
+        bool show = _mode == CaptureMode.Region;
+        GuideV.Visibility = GuideH.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show) return;
+
+        double sw = Surface.ActualWidth, sh = Surface.ActualHeight;
+        if (sw <= 0 || sh <= 0) return;
+
+        var g = CrosshairGeometry(dip, sw, sh, ScaleX, ScaleY);
+
+        GuideV.Width = g.VWidth;
+        GuideV.Height = g.VHeight;
+        Canvas.SetLeft(GuideV, g.VLeft);
+        Canvas.SetTop(GuideV, 0);
+
+        GuideH.Width = g.HWidth;
+        GuideH.Height = g.HHeight;
+        Canvas.SetLeft(GuideH, 0);
+        Canvas.SetTop(GuideH, g.HTop);
+    }
+
+    internal readonly record struct CrosshairLayout(
+        double VLeft, double VWidth, double VHeight,
+        double HTop, double HWidth, double HHeight);
+
+    /// <summary>
+    /// 准星几何：竖线贯穿整个高、横线贯穿整个宽，交叉点锁在鼠标所在的那个物理像素上，
+    /// 线粗恒为 1 物理像素（高 DPI 下不会拉成 2px 发虚）。抽成静态方法便于无界面验证。
+    /// </summary>
+    internal static CrosshairLayout CrosshairGeometry(
+        Point dip, double surfaceWidth, double surfaceHeight, double scaleX, double scaleY)
+    {
+        if (scaleX <= 0) scaleX = 1;
+        if (scaleY <= 0) scaleY = 1;
+
+        double vLeft = Math.Round(dip.X * scaleX) / scaleX;
+        double hTop = Math.Round(dip.Y * scaleY) / scaleY;
+
+        return new CrosshairLayout(
+            VLeft: vLeft, VWidth: 1 / scaleX, VHeight: surfaceHeight,
+            HTop: hTop, HWidth: surfaceWidth, HHeight: 1 / scaleY);
     }
 
     private void PositionHint()

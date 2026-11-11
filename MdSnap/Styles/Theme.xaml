@@ -480,6 +480,13 @@
     <SolidColorBrush x:Key="OverlayLabelBrush" Color="#A8B0BC"/>
     <SolidColorBrush x:Key="OverlayHintBrush" Color="#E8FFFFFF"/>
 
+    <!-- 全屏十字准星：近白细线 + 暗描边，浅色/深色底图上都看得见 -->
+    <SolidColorBrush x:Key="OverlayGuideBrush" Color="#E6FFFFFF"/>
+
+    <DropShadowEffect x:Key="OverlayGuideShadow" x:Shared="False"
+                      Color="#000000" BlurRadius="4" ShadowDepth="0" Opacity="0.8"
+                      RenderingBias="Performance"/>
+
     <!-- 文字描边：让提示语压在任何底图（纯白/纯黑）上都读得清 -->
     <DropShadowEffect x:Key="ShadowText" x:Shared="False"
                       Color="#000000" BlurRadius="7" ShadowDepth="0" Opacity="0.9" RenderingBias="Quality"/>

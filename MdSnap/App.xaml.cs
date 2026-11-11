@@ -254,6 +254,18 @@ public partial class App : Application
 
                 var ov = new Overlay.SelectionOverlay(probe);                    // 触发 XAML/BAML 加载
                 overlayInfo += ov is null ? " | XAML=FAIL" : " | XAML=OK";
+
+                // 全屏十字准星几何：1 倍缩放下 1px 线、贯穿整屏
+                var g1 = Overlay.SelectionOverlay.CrosshairGeometry(new Point(101, 202), 400, 300, 1, 1);
+                bool g1ok = g1.VLeft == 101 && g1.VWidth == 1 && g1.VHeight == 300
+                         && g1.HTop == 202 && g1.HWidth == 400 && g1.HHeight == 1;
+                // 1.25 倍 DPI：线粗仍是 1 物理像素
+                var g2 = Overlay.SelectionOverlay.CrosshairGeometry(new Point(101, 202), 400, 300, 1.25, 1.25);
+                bool g2ok = Math.Abs(g2.VWidth - 0.8) < 1e-9 && Math.Abs(g2.VLeft - 100.8) < 1e-9
+                         && Math.Abs(g2.HTop - 201.6) < 1e-9;
+                overlayInfo += g1ok && g2ok
+                    ? " | 准星=OK(全长线/1物理像素)"
+                    : $" | 准星=FAIL({g1} | {g2})";
             }
             catch (Exception ox) { overlayInfo = "FAIL: " + ox.Message; }
 

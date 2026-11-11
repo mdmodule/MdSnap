@@ -91,6 +91,16 @@
                 </Rectangle.Fill>
             </Rectangle>
 
+            <!-- 全屏十字准星（区域模式）：横竖两条线各贯穿整个虚拟桌面，
+                 跟着鼠标走，用来目测/量取两点距离。放在选区裁片之上，
+                 这样框选过程中的线上也能看见；IsHitTestVisible=False 不拦鼠标。 -->
+            <Rectangle x:Name="GuideV" Visibility="Collapsed" IsHitTestVisible="False"
+                       Fill="{StaticResource OverlayGuideBrush}" Effect="{StaticResource OverlayGuideShadow}"
+                       RenderOptions.EdgeMode="Aliased"/>
+            <Rectangle x:Name="GuideH" Visibility="Collapsed" IsHitTestVisible="False"
+                       Fill="{StaticResource OverlayGuideBrush}" Effect="{StaticResource OverlayGuideShadow}"
+                       RenderOptions.EdgeMode="Aliased"/>
+
             <!-- 选区边框 + 四角把手。
                  把手改成「白心 + 主色描边」——纯主色实心在浅色截图上几乎看不见。 -->
             <Rectangle x:Name="SelBorder" Visibility="Collapsed" Stroke="{StaticResource AccentBrush}"
