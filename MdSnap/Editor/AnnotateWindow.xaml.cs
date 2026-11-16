@@ -16,7 +16,7 @@ namespace MdSnap.Editor;
 /// </summary>
 public partial class AnnotateWindow : Window
 {
-    private enum ToolKind { Arrow, Rect, Text, Highlight, Mosaic, Eraser }
+    private enum ToolKind { Arrow, Line, Rect, Text, Highlight, Mosaic, Eraser }
 
     // 调色板（红蜻蜓那种「暖色打标注」的直觉）
     private static readonly (string Name, Color Value)[] Palette =
@@ -84,8 +84,6 @@ public partial class AnnotateWindow : Window
         AnnoCanvas.Height = _ih;
         AnnoCanvas.Cursor = Cursors.Cross;
 
-        SizeWindowToImage();
-
         BuildPalette();
         SetTool(ToolKind.Arrow);
         // 注意：这里必须传「档位索引」而不是线宽值。
@@ -93,6 +91,9 @@ public partial class AnnotateWindow : Window
         // SetWidthPreset(int)，被当成索引 4 而越界。所以只保留 int 重载，
         // 并把这里改成索引（1 = 中）。
         SetWidthPreset(1);
+
+        // 窗口尺寸放在最后定：宽度要量过工具条，颜色块和「细/中/粗」建好才量得准
+        SizeWindowToImage();
 
         AnnoCanvas.MouseLeftButtonDown += Canvas_MouseDown;
         AnnoCanvas.MouseMove += Canvas_MouseMove;
@@ -133,13 +134,35 @@ public partial class AnnotateWindow : Window
         double maxW = SystemParameters.WorkArea.Width * 0.86 - ChromeWidth;
         double maxH = SystemParameters.WorkArea.Height * 0.82 - ChromeHeight;
         double s = Math.Min(Math.Min(maxW / _iw, maxH / _ih), 1.0);
-        Width = Math.Max(560, _iw * s + ChromeWidth);
-        Height = Math.Max(360, _ih * s + ChromeHeight);
+        double w = Math.Max(560, _iw * s + ChromeWidth);
+        double h = Math.Max(360, _ih * s + ChromeHeight);
+
+        // 工具条是单行：窗口比它窄，右侧的颜色块和「细/中/粗」就会被窗口边缘裁掉
+        // （小图截图时必然发生，肉眼表现为"颜色选不了/调不了粗细"）。
+        // 先量一遍工具条，窗口宽度至少给够它 —— 图片由 Viewbox 等比缩放居中，不会变形。
+        ToolRow.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double needW = ToolRow.DesiredSize.Width + 20 + ChromeWidth;   // 20 = 工具条左右 Padding(10)
+
+        Width = Math.Min(Math.Max(w, needW), maxW + ChromeWidth);
+        Height = h;
     }
 
     /// <summary>取主题里的画刷（编辑器配色统一走 Styles/Theme.xaml，不在代码里写死颜色）。</summary>
     private static Brush ThemeBrush(string key) =>
         Application.Current?.TryFindResource(key) as Brush ?? Brushes.White;
+
+    /// <summary>工具条实测内容宽度（窗口宽度必须容得下它，否则右侧控件被裁）。给 --selftest 用。</summary>
+    internal double ToolbarContentWidth
+    {
+        get
+        {
+            ToolRow.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            return ToolRow.DesiredSize.Width;
+        }
+    }
+
+    /// <summary>窗口为图片固定留出的非图片宽度（工具条 Padding 20 + 画布外边距）。</summary>
+    internal const double ToolbarChrome = 44;
 
     // ---------- 工具条 ----------
 
@@ -193,6 +216,7 @@ public partial class AnnotateWindow : Window
         _tool = kind;
 
         TArrow.IsChecked = kind == ToolKind.Arrow;
+        TLine.IsChecked = kind == ToolKind.Line;
         TRect.IsChecked = kind == ToolKind.Rect;
         TText.IsChecked = kind == ToolKind.Text;
         THighlight.IsChecked = kind == ToolKind.Highlight;
@@ -366,6 +390,7 @@ public partial class AnnotateWindow : Window
     private Anno? MakeAnno(Point a, Point b) => _tool switch
     {
         ToolKind.Arrow => new ArrowAnno { Start = a, End = b, Color = _color, Thickness = ThicknessPx },
+        ToolKind.Line => new LineAnno { Start = a, End = b, Color = _color, Thickness = ThicknessPx },
         ToolKind.Rect => new RectAnno { Start = a, End = b, Color = _color, Thickness = ThicknessPx },
         ToolKind.Highlight => new HighlightAnno { Start = a, End = b, Color = _color, Thickness = ThicknessPx },
         ToolKind.Mosaic => new MosaicAnno { Start = a, End = b, Color = _color, Thickness = ThicknessPx },

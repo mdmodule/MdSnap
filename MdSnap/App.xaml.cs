@@ -380,16 +380,68 @@ public partial class App : Application
                     textOk = whitePx > 100;
                 }
 
+                // 线条：黑底上画一条 y=60、粗 8 的红线 —— 线带内必须有实色像素且铺满两端，
+                // 离线带的行必须一个红点都没有（否则说明渲染跑到别处去了）
+                bool lineOk;
+                int onRow = 0, offRow = 0;
+                {
+                    using var blackL = new System.Drawing.Bitmap(400, 120);
+                    using (var g = System.Drawing.Graphics.FromImage(blackL))
+                        g.Clear(System.Drawing.Color.Black);
+                    var lSrc = Editor.AnnotateWindow.ToBitmapSource(blackL);
+                    var smallL = new TransformedBitmap(lSrc, new ScaleTransform(1.0 / block, 1.0 / block));
+                    smallL.Freeze();
+                    var ctxL = new Editor.RenderContext { Pixelated = smallL, ImageWidth = 400, ImageHeight = 120 };
+                    var onlyLine = new List<Editor.Anno>
+                    {
+                        new Editor.LineAnno { Start = new Point(20, 60), End = new Point(380, 60), Color = Colors.Red, Thickness = 8 },
+                    };
+                    var limg = Editor.AnnotateWindow.ComposeImage(lSrc, null, onlyLine, ctxL, 400, 120);
+                    var c3 = new FormatConvertedBitmap(limg, PixelFormats.Bgra32, null, 0);
+                    var b3 = new byte[c3.PixelWidth * c3.PixelHeight * 4];
+                    c3.CopyPixels(b3, c3.PixelWidth * 4, 0);
+                    int minX = int.MaxValue, maxX = -1;
+                    for (int i = 0; i < b3.Length; i += 4)
+                    {
+                        bool isRed = b3[i + 2] > 180 && b3[i + 1] < 90 && b3[i] < 90;
+                        if (!isRed) continue;
+                        int pix = i / 4, px = pix % 400, py = pix / 400;
+                        // 线带 = y 56..64（粗 8 居中在 60），两端圆头会各外扩半个线宽
+                        if (py >= 56 && py <= 64)
+                        {
+                            onRow++;
+                            if (px < minX) minX = px;
+                            if (px > maxX) maxX = px;
+                        }
+                        else offRow++;
+                    }
+                    lineOk = onRow > 2500 && offRow < 200 && minX <= 24 && maxX >= 376;
+                }
+
                 bool shapesOk = red > 50 && lime > 50 && highlight > 500;
                 bool mosaicOk = mosaicFlat < 0.15 && controlSharp > 0.5;
-                bool allOk = shapesOk && mosaicOk && textOk;
+
+                // 工具条宽度：窗口必须容得下整条工具条（否则颜色/粗细被裁掉，小图必现）
+                bool toolbarOk;
+                string toolbarDetail;
+                {
+                    using var probeBase = new System.Drawing.Bitmap(900, 700);
+                    var aw = new Editor.AnnotateWindow(probeBase);
+                    double need = aw.ToolbarContentWidth + Editor.AnnotateWindow.ToolbarChrome;
+                    toolbarOk = aw.Width + 0.5 >= need;
+                    toolbarDetail = $"{need:0}/{aw.Width:0}";
+                }
+
+                bool allOk = shapesOk && mosaicOk && textOk && lineOk && toolbarOk;
 
                 editorInfo = $"{(allOk ? "OK" : "FAIL")}: " +
                              $"箭头{(red > 50 ? "OK" : "FAIL")}({red}px) " +
+                             $"线条{(lineOk ? "OK" : "FAIL")}({onRow}/{offRow}) " +
                              $"矩形{(lime > 50 ? "OK" : "FAIL")}({lime}px) " +
                              $"高亮{(highlight > 500 ? "OK" : "FAIL")}({highlight}px) | " +
                              $"马赛克{(mosaicOk ? "OK" : "FAIL")}(平整{mosaicFlat:P0}/对照{controlSharp:P0}) | " +
-                             $"文字{(textOk ? "OK" : "FAIL")}";
+                             $"文字{(textOk ? "OK" : "FAIL")} | " +
+                             $"工具条{(toolbarOk ? "OK" : "FAIL")}(需{toolbarDetail})";
             }
             catch (Exception ex2) { editorInfo = "FAIL: " + ex2.Message; }
 
@@ -401,6 +453,8 @@ public partial class App : Application
                 {
                     ("箭头", new Editor.ArrowAnno { Start = new Point(20, 20), End = new Point(180, 120), Color = Colors.Red, Thickness = 6 },
                         new Point(100, 70), new Point(300, 250)),
+                    ("线条", new Editor.LineAnno { Start = new Point(20, 240), End = new Point(180, 240), Color = Colors.Red, Thickness = 6 },
+                        new Point(100, 240), new Point(300, 60)),
                     ("矩形", new Editor.RectAnno { Start = new Point(200, 20), End = new Point(380, 120), Color = Colors.Lime, Thickness = 5 },
                         new Point(290, 70), new Point(50, 250)),
                     ("高亮", new Editor.HighlightAnno { Start = new Point(20, 140), End = new Point(200, 190), Color = Colors.Yellow, Thickness = 4 },
@@ -418,7 +472,7 @@ public partial class App : Application
                     if (anno.HitTest(off, 6)) fails.Add($"{name}误判");
                 }
                 eraserInfo = fails.Count == 0
-                    ? "OK: 5/5 图元命中判定正确（命中/不命中双向验证）"
+                    ? $"OK: {probes.Length}/{probes.Length} 图元命中判定正确（命中/不命中双向验证）"
                     : "FAIL: " + string.Join(", ", fails);
             }
             catch (Exception ex3) { eraserInfo = "FAIL: " + ex3.Message; }

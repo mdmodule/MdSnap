@@ -82,6 +82,32 @@ public sealed class RectAnno : Anno
     }
 }
 
+/// <summary>
+/// 直线。与箭头分开：箭头是「锥形填充多边形」，线条要的是一根从头到尾等宽、两端圆头的干净直线。
+/// </summary>
+public sealed class LineAnno : Anno
+{
+    public required Point Start { get; init; }
+    public required Point End { get; init; }
+
+    public override void Render(Canvas canvas, RenderContext ctx)
+    {
+        // 用 Path + LineGeometry，而不是 Line 元素：Canvas 里 Line 的布局槽是 0x0，
+        // Shape 的 Stretch 会把几何缩到看不见（自检直接判 FAIL，肉眼表现为"画了没反应"）。
+        canvas.Children.Add(new Path
+        {
+            Stroke = Brush(),
+            StrokeThickness = Thickness,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            Data = new LineGeometry(Start, End),
+        });
+    }
+
+    public override bool HitTest(Point p, double radius)
+        => DistanceToSegment(p, Start, End) <= radius + Thickness / 2 + 2;
+}
+
 /// <summary>高亮（半透明色块，类似荧光笔）。</summary>
 public sealed class HighlightAnno : Anno
 {

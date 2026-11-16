@@ -35,7 +35,7 @@
         <!-- ===== 工具条 ===== -->
         <Border DockPanel.Dock="Top" Background="{StaticResource DarkToolbarBrush}" Padding="10,9"
                 BorderBrush="{StaticResource DarkBorderBrush}" BorderThickness="0,1,0,1">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <StackPanel x:Name="ToolRow" Orientation="Horizontal" VerticalAlignment="Center">
                 <!-- 输出动作放最左 -->
                 <Button x:Name="CopyBtn" Content="复制" Style="{StaticResource DarkPrimary}" Click="Copy_Click" ToolTip="Ctrl+C"/>
                 <Button x:Name="SaveBtn" Content="保存" Style="{StaticResource DarkPrimary}" Click="Save_Click" ToolTip="Ctrl+S"/>
@@ -44,6 +44,7 @@
                 <Rectangle Width="1" Fill="{StaticResource DarkSepBrush}" Margin="9,3"/>
 
                 <ToggleButton x:Name="TArrow" Content="箭头" Style="{StaticResource DarkTool}" Click="Tool_Click" Tag="Arrow"/>
+                <ToggleButton x:Name="TLine" Content="线条" Style="{StaticResource DarkTool}" Click="Tool_Click" Tag="Line" ToolTip="直线：按住从起点拖到终点"/>
                 <ToggleButton x:Name="TRect" Content="矩形" Style="{StaticResource DarkTool}" Click="Tool_Click" Tag="Rect"/>
                 <ToggleButton x:Name="TText" Content="文字" Style="{StaticResource DarkTool}" Click="Tool_Click" Tag="Text"/>
                 <ToggleButton x:Name="THighlight" Content="高亮" Style="{StaticResource DarkTool}" Click="Tool_Click" Tag="Highlight"/>
@@ -62,7 +63,8 @@
                 <Button x:Name="ThickBtn" Content="粗" Style="{StaticResource DarkAct}" Click="Width_Click" Tag="8"/>
 
                 <TextBlock x:Name="StatusText" Foreground="{StaticResource DarkMutedBrush}"
-                           Margin="14,0,0,0" VerticalAlignment="Center"/>
+                           Margin="14,0,0,0" VerticalAlignment="Center"
+                           MaxWidth="260" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
         </Border>
 
