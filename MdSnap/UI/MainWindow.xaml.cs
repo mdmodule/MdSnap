@@ -308,8 +308,8 @@ public partial class MainWindow : Window
 
         ToolsGuideText.Text =
             $"1. 按 {hotkey}（或点左侧「捕捉」）开始截图\n" +
-            "2. 拖拽框选区域，或在覆盖层工具条切「全屏」\n" +
-            "3. Enter 确定 → 进标注编辑器；Esc 取消\n" +
+            "2. 区域框选：单击一次定起点，移动鼠标，再单击一次定终点（也可按住拖框）\n" +
+            "3. 第二下单击即完成 → 进标注编辑器；Esc 取消\n" +
             "4. 编辑器：箭头 / 矩形 / 文字 / 高亮 / 马赛克 / 橡皮擦\n" +
             "5. Ctrl+C 复制到剪贴板，Ctrl+S 保存，Ctrl+Z 撤销";
     }
@@ -351,8 +351,8 @@ public partial class MainWindow : Window
 
     private void Guide_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this,
         $"1. 按 {AppConfig.Hotkey.Text}（或点左侧「捕捉」）开始截图\n" +
-        "2. 默认「选定区域」：拖拽鼠标框选；也可在覆盖层工具条切「全屏」\n" +
-        "3. Enter 确定进入标注编辑器，Esc 取消\n" +
+        "2. 默认「选定区域」：单击一次定起点，移动鼠标，再单击一次定终点（也可按住拖框）\n" +
+        "3. 第二下单击即确定，直接进标注编辑器；Esc 取消\n" +
         "4. 编辑器内可画 箭头/矩形/文字/高亮/马赛克，或用橡皮擦擦掉画面内容\n" +
         "5. Ctrl+C 复制到剪贴板，Ctrl+S 保存，Ctrl+Z 撤销（画错擦错都能撤）\n" +
         $"6. 截图保存到：{FileSaver.SaveDir}\n\n" +

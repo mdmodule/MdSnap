@@ -101,18 +101,9 @@
                        Fill="{StaticResource OverlayGuideBrush}" Effect="{StaticResource OverlayGuideShadow}"
                        RenderOptions.EdgeMode="Aliased"/>
 
-            <!-- 选区边框 + 四角把手。
-                 把手改成「白心 + 主色描边」——纯主色实心在浅色截图上几乎看不见。 -->
+            <!-- 选区边框（单击式框选，没有四角把手：第二下单击即完成，不需要拖把手微调） -->
             <Rectangle x:Name="SelBorder" Visibility="Collapsed" Stroke="{StaticResource AccentBrush}"
                        StrokeThickness="1.5" Fill="Transparent" IsHitTestVisible="False"/>
-            <Rectangle x:Name="H_TL" Width="9" Height="9" Fill="White" Stroke="{StaticResource AccentBrush}"
-                       StrokeThickness="2" RadiusX="2" RadiusY="2" Visibility="Collapsed" IsHitTestVisible="False"/>
-            <Rectangle x:Name="H_TR" Width="9" Height="9" Fill="White" Stroke="{StaticResource AccentBrush}"
-                       StrokeThickness="2" RadiusX="2" RadiusY="2" Visibility="Collapsed" IsHitTestVisible="False"/>
-            <Rectangle x:Name="H_BL" Width="9" Height="9" Fill="White" Stroke="{StaticResource AccentBrush}"
-                       StrokeThickness="2" RadiusX="2" RadiusY="2" Visibility="Collapsed" IsHitTestVisible="False"/>
-            <Rectangle x:Name="H_BR" Width="9" Height="9" Fill="White" Stroke="{StaticResource AccentBrush}"
-                       StrokeThickness="2" RadiusX="2" RadiusY="2" Visibility="Collapsed" IsHitTestVisible="False"/>
 
             <!-- 尺寸角标：不透明主色 + 浅描边，压在浅色底图上也能读 -->
             <Border x:Name="SizeBadge" Background="{StaticResource AccentBrush}" CornerRadius="{StaticResource RadiusSmall}"
@@ -120,8 +111,8 @@
                 <TextBlock x:Name="SizeText" Foreground="White" FontSize="13" FontFamily="{StaticResource MonoFont}"/>
             </Border>
 
-            <!-- 未开始拖拽时的提示（加一圈暗描边，任何底图上都清晰） -->
-            <TextBlock x:Name="Hint" Text="拖拽鼠标框选区域　·　双击 = 全屏　·　Esc = 取消"
+            <!-- 未落起点时的提示（加一圈暗描边，任何底图上都清晰） -->
+            <TextBlock x:Name="Hint" Text="单击一次定起点，移动鼠标，再单击一次定终点　·　F = 全屏　·　Esc = 取消"
                        Foreground="{StaticResource OverlayHintBrush}" FontSize="16"
                        Effect="{StaticResource ShadowText}" IsHitTestVisible="False"/>
 
@@ -132,11 +123,11 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="模式" Foreground="{StaticResource OverlayLabelBrush}" FontSize="12"
                                Margin="7,0,9,0" VerticalAlignment="Center"/>
-                    <ToggleButton x:Name="BtnRegion" Content="区域拖框" Style="{StaticResource TbToggle}" IsChecked="True" Click="BtnRegion_Click"/>
+                    <ToggleButton x:Name="BtnRegion" Content="区域框选" Style="{StaticResource TbToggle}" IsChecked="True" Click="BtnRegion_Click"/>
                     <ToggleButton x:Name="BtnWindow" Content="活动窗口" Style="{StaticResource TbToggle}" Click="BtnWindow_Click"/>
                     <ToggleButton x:Name="BtnFull" Content="全屏" Style="{StaticResource TbToggle}" Click="BtnFull_Click"/>
                     <Rectangle Width="1" Fill="{StaticResource OverlaySepBrush}" Margin="10,4"/>
-                    <TextBlock x:Name="InfoText" Text="拖拽选择区域" Foreground="{StaticResource OverlayLabelBrush}" FontSize="12"
+                    <TextBlock x:Name="InfoText" Text="单击确定起点" Foreground="{StaticResource OverlayLabelBrush}" FontSize="12"
                                VerticalAlignment="Center" Margin="2,0,14,0"/>
                     <Button x:Name="BtnOk" Content="确定" Style="{StaticResource TbBtn}" Click="BtnOk_Click"/>
                     <Button x:Name="BtnCancel" Content="取消" Style="{StaticResource TbBtn}" Click="BtnCancel_Click"/>

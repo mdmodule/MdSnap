@@ -9,7 +9,6 @@ using System.Windows.Media.Imaging;
 using MdSnap.Capture;
 using Point = System.Windows.Point;
 using Size = System.Windows.Size;
-using Rectangle = System.Windows.Shapes.Rectangle;
 
 namespace MdSnap.Overlay;
 
@@ -30,8 +29,13 @@ public partial class SelectionOverlay : Window
 
     private CaptureMode _mode = CaptureMode.Region;
 
-    private bool _dragging;
-    private Point _start;
+    /// <summary>区域模式的单击式框选：第一次单击定起点，第二次单击定终点。</summary>
+    private readonly ClickSelector _selector = new();
+
+    private bool _pressed;                 // 左键是否正按着（识别「按住拖开」的老习惯）
+    private Point _pressPos;
+    private bool _movedWhilePressed;
+
     private Rect _sel = Rect.Empty;
     private IntPtr _hoverWindow;
 
@@ -106,59 +110,86 @@ public partial class SelectionOverlay : Window
             return;
         }
 
-        if (e.ClickCount == 2)   // 双击 = 全屏
+        // 全屏模式：单击即确认
+        if (_mode == CaptureMode.Full)
         {
-            SetMode(CaptureMode.Full);
             Confirm();
             return;
         }
 
-        _dragging = true;
-        _start = e.GetPosition(Surface);
-        _sel = new Rect(_start, new Size(0, 0));
+        // 区域模式：单击定起点 -> 移动鼠标 -> 再单击定终点。
+        // 这里**不能**再看 e.ClickCount：两次点击框选时快速连点会命中 ClickCount==2，
+        // 旧版「双击 = 全屏」会把它抢走。全屏请按 F 或点工具条上的「全屏」。
+        var p = e.GetPosition(Surface);
+        _pressed = true;
+        _pressPos = p;
+        _movedWhilePressed = false;
+
+        var step = _selector.Down(p);
+        _sel = _selector.Selection;
         Hint.Visibility = Visibility.Collapsed;
+        if (step == ClickSelectStep.AnchorSet) InfoText.Text = "移动鼠标，再次单击确定终点";
         CaptureMouse();
         UpdateSelectionVisual();
         e.Handled = true;
+
+        if (step == ClickSelectStep.Completed) Finish();
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        var p = e.GetPosition(Surface);
 
         // 准星线永远跟着鼠标（区域模式才显示；其它模式在方法内部自动隐藏）
-        UpdateCrosshair(e.GetPosition(Surface));
+        UpdateCrosshair(p);
 
-        if (_mode == CaptureMode.Window && !_dragging)
+        if (_mode == CaptureMode.Window)
         {
-            UpdateHoverWindow(e.GetPosition(Surface), force: false);
+            if (!_selector.HasAnchor) UpdateHoverWindow(p, force: false);
             return;
         }
 
-        if (!_dragging) return;
-        _sel = Normalize(_start, e.GetPosition(Surface));
+        if (!_selector.HasAnchor) return;
+
+        // 起点落下后一直按住鼠标拖开 = 老式拖框，松手即完成（见 OnMouseLeftButtonUp）
+        if (_pressed
+            && (Math.Abs(p.X - _pressPos.X) >= ClickSelector.MinSize
+                || Math.Abs(p.Y - _pressPos.Y) >= ClickSelector.MinSize))
+        {
+            _movedWhilePressed = true;
+        }
+
+        _selector.Move(p);
+        _sel = _selector.Selection;
         UpdateSelectionVisual();
     }
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonUp(e);
-        if (!_dragging) return;
-        _dragging = false;
+        if (!_pressed) return;
+        _pressed = false;
         ReleaseMouseCapture();
 
-        _sel = Normalize(_start, e.GetPosition(Surface));
-        if (_sel.Width < 3 || _sel.Height < 3)   // 误点：清掉选区，回到提示态
-        {
-            _sel = Rect.Empty;
-            Hint.Visibility = Visibility.Visible;
-        }
+        if (_mode != CaptureMode.Region || !_selector.HasAnchor) return;
+
+        // 只是点了一下（没按住拖）：起点已落下，等第二次单击
+        if (!_movedWhilePressed) return;
+
+        _selector.Move(e.GetPosition(Surface));
+        _sel = _selector.Selection;
         UpdateSelectionVisual();
+        if (_sel.Width >= ClickSelector.MinSize && _sel.Height >= ClickSelector.MinSize) Finish();
     }
 
-    private static Rect Normalize(Point a, Point b) => new(
-        Math.Min(a.X, b.X), Math.Min(a.Y, b.Y),
-        Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
+    /// <summary>两点齐了：交给原有的裁剪流程（Confirm 自带最小尺寸保护）。</summary>
+    private void Finish()
+    {
+        _pressed = false;
+        ReleaseMouseCapture();
+        Confirm();
+    }
 
     // ---------- 活动窗口：悬停高亮 ----------
 
@@ -245,6 +276,8 @@ public partial class SelectionOverlay : Window
     private void SetMode(CaptureMode mode)
     {
         _mode = mode;
+        _selector.Reset();
+        _pressed = false;
         BtnRegion.IsChecked = mode == CaptureMode.Region;
         BtnWindow.IsChecked = mode == CaptureMode.Window;
         BtnFull.IsChecked = mode == CaptureMode.Full;
@@ -291,7 +324,7 @@ public partial class SelectionOverlay : Window
                 break;
 
             default:
-                InfoText.Text = "拖拽选择区域";
+                InfoText.Text = "单击确定起点";
                 _sel = Rect.Empty;
                 Hint.Visibility = Visibility.Visible;
                 break;
@@ -323,7 +356,6 @@ public partial class SelectionOverlay : Window
         if (!has)
         {
             Crop.Visibility = SelBorder.Visibility = SizeBadge.Visibility = Visibility.Collapsed;
-            foreach (var h in Handles) h.Visibility = Visibility.Collapsed;
             PlaceToolbar(null);
             return;
         }
@@ -342,19 +374,7 @@ public partial class SelectionOverlay : Window
         SelBorder.Width = r.Width;
         SelBorder.Height = r.Height;
 
-        // 四角把手只在区域模式出现 —— 活动窗口模式不能拖拽，画出来会误导
-        if (_mode == CaptureMode.Region)
-        {
-            const double half = 4.5;   // 把手边长 9（见 XAML 的 H_*），居中到角上各偏移一半
-            Place(H_TL, r.X - half, r.Y - half);
-            Place(H_TR, r.X + r.Width - half, r.Y - half);
-            Place(H_BL, r.X - half, r.Y + r.Height - half);
-            Place(H_BR, r.X + r.Width - half, r.Y + r.Height - half);
-        }
-        else
-        {
-            foreach (var h in Handles) h.Visibility = Visibility.Collapsed;
-        }
+        // 四角把手已去掉：单击式框选不再有「拖把手微调」这一步，画出来只会误导。
 
         // 角标显示物理像素
         SizeText.Text = $"{Math.Round(r.Width * ScaleX)} × {Math.Round(r.Height * ScaleY)}";
@@ -367,8 +387,10 @@ public partial class SelectionOverlay : Window
         Canvas.SetLeft(SizeBadge, Math.Clamp(bx, 2, Math.Max(2, sw - bw - 2)));
         Canvas.SetTop(SizeBadge, Math.Clamp(by, 2, Math.Max(2, sh - bh - 2)));
 
-        // 活动窗口模式下工具条固定在顶部，否则会跟着鼠标满屏乱跑
-        PlaceToolbar(_mode == CaptureMode.Window ? null : r);
+        // 活动窗口模式固定在顶部；区域模式在「已落起点、等第二点」期间也固定 ——
+        // 否则工具条会贴着选框下沿走，正好压在第二次单击的位置上
+        bool pinTop = _mode == CaptureMode.Window || (_mode == CaptureMode.Region && _selector.HasAnchor);
+        PlaceToolbar(pinTop ? null : r);
     }
 
     // ---------- 全屏十字准星 ----------
@@ -456,15 +478,6 @@ public partial class SelectionOverlay : Window
 
         Canvas.SetLeft(Toolbar, Math.Clamp(x, 2, Math.Max(2, sw - tw - 2)));
         Canvas.SetTop(Toolbar, Math.Clamp(y, 2, Math.Max(2, sh - th - 2)));
-    }
-
-    private Rectangle[] Handles => new[] { H_TL, H_TR, H_BL, H_BR };
-
-    private static void Place(Rectangle el, double x, double y)
-    {
-        el.Visibility = Visibility.Visible;
-        Canvas.SetLeft(el, x);
-        Canvas.SetTop(el, y);
     }
 
     private double ScaleX => Surface.ActualWidth > 0 ? _frozen.Width / Surface.ActualWidth : 1;

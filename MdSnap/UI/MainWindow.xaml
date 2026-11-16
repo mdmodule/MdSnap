@@ -79,7 +79,7 @@
                         <ListBoxItem Tag="Region" AutomationProperties.Name="选定区域">
                             <StackPanel>
                                 <TextBlock Text="选定区域" FontSize="13.5"/>
-                                <TextBlock Text="拖框选择要截的部分" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,3,0,0"/>
+                                <TextBlock Text="单击两次框选要截的部分" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,3,0,0"/>
                             </StackPanel>
                         </ListBoxItem>
                     </ListBox>

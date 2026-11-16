@@ -266,6 +266,38 @@ public partial class App : Application
                 overlayInfo += g1ok && g2ok
                     ? " | 准星=OK(全长线/1物理像素)"
                     : $" | 准星=FAIL({g1} | {g2})";
+
+                // 单击式框选状态机：第一次单击定起点、移动跟出矩形、第二次单击定终点；
+                // 反向框选要归一化；两次点在一起按误点处理（改起点，不出选区）。
+                var cs = new Overlay.ClickSelector();
+                var st1 = cs.Down(new Point(100, 100));
+                cs.Move(new Point(300, 250));
+                var mid = cs.Selection;
+                var st2 = cs.Down(new Point(300, 250));
+                bool clickOk = st1 == Overlay.ClickSelectStep.AnchorSet
+                               && st2 == Overlay.ClickSelectStep.Completed
+                               && mid.Width == 200 && mid.Height == 150
+                               && cs.Selection.X == 100 && cs.Selection.Y == 100
+                               && cs.Selection.Width == 200 && cs.Selection.Height == 150;
+
+                var cs2 = new Overlay.ClickSelector();
+                cs2.Down(new Point(300, 250));
+                cs2.Move(new Point(100, 100));
+                var st3 = cs2.Down(new Point(100, 100));            // 从右下往左上框
+                bool reverseOk = st3 == Overlay.ClickSelectStep.Completed
+                                 && cs2.Selection.X == 100 && cs2.Selection.Y == 100
+                                 && cs2.Selection.Width == 200 && cs2.Selection.Height == 150;
+
+                var cs3 = new Overlay.ClickSelector();
+                cs3.Down(new Point(100, 100));
+                var st4 = cs3.Down(new Point(101, 101));            // 第二次点回起点 = 误点
+                bool retryOk = st4 == Overlay.ClickSelectStep.AnchorSet
+                               && cs3.Anchor == new Point(101, 101)
+                               && cs3.Selection.Width == 0 && cs3.Selection.Height == 0;
+
+                overlayInfo += clickOk && reverseOk && retryOk
+                    ? " | 单击框选=OK(定起点/反向/误点重取)"
+                    : $" | 单击框选=FAIL(正向={clickOk} 反向={reverseOk} 误点={retryOk} mid={mid} done={cs.Selection})";
             }
             catch (Exception ox) { overlayInfo = "FAIL: " + ox.Message; }
 
